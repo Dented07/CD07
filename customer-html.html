@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Customer Display</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            color: white;
+            font-family: monospace;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #display {
+            font-size: 120px;
+            text-align: center;
+        }
+
+        #status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .connected {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .disconnected {
+            background: #ff4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="status" class="disconnected">Offline</div>
+    <div id="display">$0.00</div>
+
+    <script>
+        const display = document.getElementById('display');
+        const status = document.getElementById('status');
+        let ws = null;
+
+        function connectWebSocket() {
+            try {
+                // Change this IP to your computer's IP address
+                ws = new WebSocket('ws://10.0.0.231:3000');
+
+                ws.onopen = () => {
+                    status.textContent = 'Connected';
+                    status.className = 'connected';
+                };
+
+                ws.onclose = () => {
+                    status.textContent = 'Offline';
+                    status.className = 'disconnected';
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'update') {
+                            display.textContent = `$${parseFloat(data.total || 0).toFixed(2)}`;
+                        }
+                    } catch (error) {
+                        console.error('Error processing message:', error);
+                    }
+                };
+            } catch (error) {
+                console.error('WebSocket error:', error);
+            }
+        }
+
+        // Keep screen on
+        async function keepScreenOn() {
+            try {
+                if ('wakeLock' in navigator) {
+                    await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.error('Wake Lock error:', err);
+            }
+        }
+
+        // Handle visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                keepScreenOn();
+            }
+        });
+
+        // Prevent zoom on double tap
+        document.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+        });
+
+        // Start everything
+        connectWebSocket();
+        keepScreenOn();
+    </script>
+</body>
+</html>
